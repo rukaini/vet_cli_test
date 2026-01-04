@@ -1,9 +1,21 @@
 <?php
 session_start();
 
+// --- FORCE UPDATE LOGIC (Added for Debugging) ---
+if (isset($_GET['vet_id'])) {
+    $_SESSION['vetID'] = trim($_GET['vet_id']);
+}
+
+/*--- DEBUG: REMOVE THIS AFTER CHECKING ---
+echo "<pre>";
+print_r($_SESSION); // This prints all session variables nicely
+echo "</pre>";
+exit(); // Stop the rest of the page from loading so you can see the output
+*/
+
 // --- 1. Authentication Check ---
 if (!isset($_SESSION['vetID'])) {
-    echo "<script>alert('Unauthorized access. Please login.'); window.location.href='logout.php';</script>";
+    echo "<script>alert('Unauthorized access. Please login.'); window.location.href='../backend/logout.php';</script>";
     exit();
 }
 

@@ -2,7 +2,7 @@
 // Backend Treatment Controller
 require_once __DIR__ . '/connection.php';
 require_once __DIR__ . '/select_query_pg.php';
-require_once __DIR__ . '/select_query_mysqli.php';
+//require_once __DIR__ . '/select_query_mysqli.php';
 require_once __DIR__ . '/select_query_maria.php';
 
 // =========================================================================
@@ -137,12 +137,15 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
 
        // --- TAMBAHAN: SYNC KE APPOINTMENT (REQ BY ASYIQIN) ---
        // Kalau treatment status 'Completed', update appointment jadi 'Done'
-       if ($treatmentStatus === 'Completed') {
+       /*if ($treatmentStatus === 'Completed') {
            if (function_exists('updateAppointmentStatusMaria')) {
                // Update status jadi 'Done' dalam DB MariaDB
                updateAppointmentStatusMaria($appointmentID, 'Completed'); 
            }
-       }
+       }*/
+      if (function_exists('updateAppointmentStatusMaria')) {
+        updateAppointmentStatusMaria($appointmentID, $treatmentStatus); 
+    }
 
        return ['success' => true];
 

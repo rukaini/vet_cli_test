@@ -97,27 +97,39 @@ function getAppointmentByIdMaria($appointmentID) {
 }
 
 /* ---------- UPDATE APPOINTMENT STATUS (ADDED FOR SYNC) ---------- */
-function updateAppointmentStatusMaria($appointmentID, $status) {
-    $conn = getMariaDBConnection();
-    if (!$conn) return false;
+function updateAppointmentStatusMaria($appointmentID, $treatmentStatus) {
+    // 1. Connect to Aniq's Database (MariaDB)
+    $conn = getMariaDBConnection(); 
+    if (!$conn) return false; // Safety check
 
     try {
-        // Map Treatment Status to Appointment Status
-        // If Treatment is 'Completed', Appointment becomes 'Done'
-        $apptStatus = 'Pending';
-        if ($status === 'Completed') {
-            $apptStatus = 'Done';
-        } else if ($status === 'In Progress') {
-            $apptStatus = 'In Progress'; 
+        // 2. Map Your Treatment Status -> His Appointment Status
+        $newStatus = 'Pending'; // Default
+
+        if ($treatmentStatus === 'Completed') {
+            $newStatus = 'Done'; // or 'Completed', depending on what he wants
+        } 
+        elseif ($treatmentStatus === 'In Progress') {
+            $newStatus = 'In Progress';
+        }
+        elseif ($treatmentStatus === 'Deceased') {
+            $newStatus = 'Cancelled'; // Or keep as 'Done' if preferred
         }
 
-        $stmt = $conn->prepare("UPDATE appointment SET status = ? WHERE appointment_id = ?");
-        $stmt->execute([$apptStatus, $appointmentID]);
+        // 3. Run the SQL Update
+        // This matches the columns in your screenshot: status, appointment_id
+        $sql = "UPDATE appointment SET status = ? WHERE appointment_id = ?";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([$newStatus, $appointmentID]);
+        
         return true;
     } catch (PDOException $e) {
-        // Log error internally if needed, don't stop execution
-        error_log("Error updating appointment status: " . $e->getMessage());
+        // Log error silently so it doesn't break your page
+        error_log("Failed to update Aniq's DB: " . $e->getMessage());
         return false;
     }
 }
+
+
 ?>

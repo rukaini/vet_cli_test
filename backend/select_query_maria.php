@@ -95,3 +95,4 @@ function getAppointmentByIdMaria($appointmentID) {
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
+

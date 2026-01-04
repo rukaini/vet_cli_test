@@ -14,6 +14,24 @@ if (function_exists('getAppointmentByIdMaria')) {
     if($data) $petInfo = $data;
 }
 
+$serviceMapping = [
+    'SV001' => 'General Checkup / Healthy',
+    'SV002' => 'Vaccination',
+    'SV003' => 'Deworming',
+    'SV004' => 'Dental Checkup',
+    'SV005' => 'Flea & Tick Treatment',  // <--- The one from your screenshot
+    'SV006' => 'Surgery Consultation',
+    'SV007' => 'Dermatitis (Skin Infection)',
+    // Add more mappings here as needed
+];
+
+// Determine the default diagnosis value
+$preSelectedService = '';
+if (isset($petInfo['service_id']) && isset($serviceMapping[$petInfo['service_id']])) {
+    $preSelectedService = $serviceMapping[$petInfo['service_id']];
+}
+// -------------------------------
+
 include "../frontend/vetheader.php";
 ?>
 
@@ -152,7 +170,9 @@ include "../frontend/vetheader.php";
                     </div>
                     <div class="lg:col-span-1">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                        <input type="date" name="treatmentDate" required>
+                        <input type="date" name="treatmentDate" 
+       value="<?php echo isset($petInfo['date']) ? $petInfo['date'] : date('Y-m-d'); ?>" 
+       required>
                     </div>
                     <div class="lg:col-span-1">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Base Fee (RM)</label>
@@ -162,9 +182,17 @@ include "../frontend/vetheader.php";
                     <div class="lg:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Diagnosis / Service Category</label>
                         
-                        <select id="diagnosisSelect" class="block w-full p-2 border border-gray-300 rounded-md mb-2 focus:ring-teal-500 focus:border-teal-500">
-                            <option value="">-- Select Diagnosis --</option>
-                            
+                       <select id="diagnosisSelect" name="diagnosisSelect" class="block w-full p-2 border border-gray-300 rounded-md mb-2 focus:ring-teal-500 focus:border-teal-500">
+    <option value="">-- Select Diagnosis --</option>
+    
+    <optgroup label="General Services">
+        <option value="General Checkup / Healthy" <?php if($preSelectedService == 'General Checkup / Healthy') echo 'selected'; ?>>General Checkup (Physical/Skin/Ear/Eye)</option>
+        <option value="Vaccination" <?php if($preSelectedService == 'Vaccination') echo 'selected'; ?>>Vaccination</option>
+        <option value="Dental Checkup" <?php if($preSelectedService == 'Dental Checkup') echo 'selected'; ?>>Dental Checkup (Scaling/Polishing/Gum)</option>
+        <option value="Deworming" <?php if($preSelectedService == 'Deworming') echo 'selected'; ?>>Deworming (Internal Parasite)</option>
+        <option value="Flea & Tick Treatment" <?php if($preSelectedService == 'Flea & Tick Treatment') echo 'selected'; ?>>Flea & Tick Treatment (External Parasite)</option>
+        <option value="Surgery Consultation" <?php if($preSelectedService == 'Surgery Consultation') echo 'selected'; ?>>Surgery Consultation</option>
+    </optgroup>
                             <optgroup label="General Services">
                                 <option value="General Checkup / Healthy">General Checkup (Physical/Skin/Ear/Eye)</option>
                                 <option value="Vaccination">Vaccination</option>
@@ -191,8 +219,9 @@ include "../frontend/vetheader.php";
                         </select>
 
                         <input type="text" name="diagnosis" id="diagnosisInput" 
-                               placeholder="Please type the specific diagnosis..." 
-                               class="hidden w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500">
+                            value="<?php echo htmlspecialchars($preSelectedService ?? ''); ?>" 
+                            placeholder="Please type the specific diagnosis..." 
+                            class="hidden w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500">
                     </div>
                     <div class="lg:col-span-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Description / Procedure</label>
