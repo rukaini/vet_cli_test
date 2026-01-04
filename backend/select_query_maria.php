@@ -96,3 +96,37 @@ function getAppointmentByIdMaria($appointmentID) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+function updateAppointmentStatusMaria($appointmentID, $treatmentStatus) {
+    $conn = getMariaDBConnection(); 
+    if (!$conn) return false;
+
+    try {
+        // --- MATCH ANIQ'S EXACT ENUM VALUES ---
+        // His Allowed Values: 'Pending', 'Confirmed', 'Cancelled', 'Completed'
+        
+        $newStatus = 'Pending'; // Default fallback
+
+        if ($treatmentStatus === 'Completed') {
+            $newStatus = 'Completed'; // Perfect match!
+        } 
+        elseif ($treatmentStatus === 'In Progress') {
+            // "In Progress" isn't in his list, so we use "Confirmed"
+            // This tells him the appointment is active/confirmed.
+            $newStatus = 'Confirmed'; 
+        }
+        elseif ($treatmentStatus === 'Deceased') {
+            $newStatus = 'Cancelled'; // Appointment stops
+        }
+
+        $sql = "UPDATE appointment SET status = ? WHERE appointment_id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([$newStatus, $appointmentID]);
+        
+        return true;
+
+    } catch (PDOException $e) {
+        // Log the error but don't crash the page
+        error_log("Sync Error: " . $e->getMessage());
+        return false;
+    }
+}

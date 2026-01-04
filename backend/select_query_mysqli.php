@@ -125,9 +125,8 @@ function updateAppointmentStatusMaria($appointmentID, $treatmentStatus) {
         
         return true;
     } catch (PDOException $e) {
-        // Log error silently so it doesn't break your page
-        error_log("Failed to update Aniq's DB: " . $e->getMessage());
-        return false;
+        // STOP EVERYTHING and show me the error!
+        die("SYNC ERROR: Could not connect to Aniq's DB (10.48.74.61). Reason: " . $e->getMessage());
     }
 }
 
