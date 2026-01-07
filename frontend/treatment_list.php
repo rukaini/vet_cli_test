@@ -20,6 +20,7 @@ if (!isset($_SESSION['vetID'])) {
 }
 
 $vetID = $_SESSION['vetID'];
+$vetName = "Veterinarian";
 
 // --- 2. Include Backend Files ---
 require_once "../backend/connection.php";
@@ -36,10 +37,15 @@ if (isset($_SESSION['vetName']) && !empty($_SESSION['vetName']) && $_SESSION['ve
 // If not, try to fetch from Postgres Database
 else {
     if (function_exists('getVetByIdPG')) {
-        $vetData = getVetByIdPG($vetID);
-        if ($vetData && isset($vetData['vet_name'])) {
-            $displayName = $vetData['vet_name'];
-            $_SESSION['vetName'] = $displayName; // Save for later
+    // Call the backend function
+    $vetData = getVetByIdPG($vetID);
+    
+    // Check if we got data and assign the variable
+    if ($vetData && isset($vetData['vet_name'])) {
+        $vetName = $vetData['vet_name']; // <--- This is the variable you wanted
+        
+        // Optional: Save to session so we don't query every time
+        $_SESSION['vetName'] = $vetName; // Save for later
         }
     }
 }

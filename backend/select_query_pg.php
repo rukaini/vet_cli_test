@@ -45,15 +45,22 @@ function getAllVetsPG() {
 }
 
 function getVetByIdPG($vetID) {
+    // 1. Get the Postgres Connection
     $connPG = getPOSTGRES();
     if (!$connPG) return null;
 
+    // 2. The SELECT Statement
+    // We specifically select 'vet_name' so you can call it later
     $stmt = $connPG->prepare("
-        SELECT vet_id, vet_name, specialization
+        SELECT vet_name
         FROM veterinarian
         WHERE vet_id = :id
     ");
+    
+    // 3. Execute with the ID
     $stmt->execute([':id' => $vetID]);
+    
+    // 4. Return the result (as an array)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 

@@ -7,6 +7,16 @@ $vetName = $_SESSION['vetName'] ?? null;
 
 require_once "../backend/treatment_controller.php";
 
+if (empty($vetName)) {
+    if (function_exists('getVetByIdPG')) {
+        $vetData = getVetByIdPG($vetID); // This function is in select_query_pg.php
+        if ($vetData && isset($vetData['vet_name'])) {
+            $vetName = $vetData['vet_name'];
+            $_SESSION['vetName'] = $vetName; // Save it so we don't ask again
+        }
+    }
+}
+
 // Fetch Pet Info from MariaDB (snake_case)
 $petInfo = ['pet_id' => '-', 'owner_id' => '-'];
 if (function_exists('getAppointmentByIdMaria')) {
@@ -14,18 +24,21 @@ if (function_exists('getAppointmentByIdMaria')) {
     if($data) $petInfo = $data;
 }
 
+// --- UPDATED SERVICE MAPPING (MATCHING YOUR SCREENSHOT EXACTLY) ---
+// IDs are used internally to find the name, but won't be shown to the user.
 $serviceMapping = [
-    'SV001' => 'General Checkup / Healthy',
-    'SV002' => 'Vaccination',
-    'SV003' => 'Deworming',
-    'SV004' => 'Dental Checkup',
-    'SV005' => 'Flea & Tick Treatment',  // <--- The one from your screenshot
-    'SV006' => 'Surgery Consultation',
-    'SV007' => 'Dermatitis (Skin Infection)',
-    // Add more mappings here as needed
+    'SV001' => 'General Checkup',
+    'SV002' => 'Deworming',
+    'SV003' => 'Vaccination',
+    'SV004' => 'Surgery Consultation',
+    'SV005' => 'Flea & Tick Treatment',
+    'SV006' => 'Dental Checkup',
+    'SV007' => 'Ear & Eye Examination',
+    'SV008' => 'Skin & Allergy Treatment',
+    'SV009' => 'Minor Wound Treatment',
 ];
 
-// Determine the default diagnosis value
+// Determine the default diagnosis value from the appointment
 $preSelectedService = '';
 if (isset($petInfo['service_id']) && isset($serviceMapping[$petInfo['service_id']])) {
     $preSelectedService = $serviceMapping[$petInfo['service_id']];
@@ -57,11 +70,13 @@ include "../frontend/vetheader.php";
     <div class="custom-header-bg">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-3xl md:text-4xl font-bold" style="color: var(--primary-color);">Vet Clinic Treatment Portal</h1>
-            <p class="mt-1 text-lg" style="color: #6b7280;">Logged in as Vet: <strong><?php echo htmlspecialchars($vetID); ?></strong>
-            <?php if(isset($vetName)): ?>
-                (<?php echo htmlspecialchars(urldecode($vetName)); ?>)
-            <?php endif; ?>
-            </p>
+            <p class="mt-1 text-lg" style="color: #6b7280;">
+    Logged in as Vet: <strong><?php echo htmlspecialchars($vetID); ?></strong>
+    
+    <?php if (!empty($vetName)): ?>
+        (<?php echo htmlspecialchars($vetName); ?>)
+    <?php endif; ?>
+</p>
         </div>
     </div>
 
@@ -134,9 +149,9 @@ include "../frontend/vetheader.php";
         <?php if ($insert_success): ?>
             <div class="success-message rounded-md font-semibold flex flex-wrap justify-between items-center gap-4">
                 <span>Treatment record added successfully! Total fee includes medicine cost.</span>
-                <a href="http://10.48.74.197/vet_clinic/frontend/payment_gateway.php?treatment_id=<?php echo $_GET['treatment_id']; ?>&vet_id=<?php echo $vetID; ?>" 
+                <a href="http://10.48.74.197/vetclinic/backend/paymentinsert_controller.php?treatment_id=<?php echo $_GET['treatment_id']; ?>&vet_id=<?php echo $vetID; ?>&owner_id=<?php echo $owner_id; ?><?php echo $petInfo['owner_id']; ?>" 
                    class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded shadow">
-                   Proceed to Payment (Tya)
+                   Proceed to Payment 
                 </a>
             </div>
         <?php endif; ?>
@@ -183,23 +198,18 @@ include "../frontend/vetheader.php";
                         <label class="block text-sm font-medium text-gray-700 mb-1">Diagnosis / Service Category</label>
                         
                        <select id="diagnosisSelect" name="diagnosisSelect" class="block w-full p-2 border border-gray-300 rounded-md mb-2 focus:ring-teal-500 focus:border-teal-500">
-    <option value="">-- Select Diagnosis --</option>
-    
-    <optgroup label="General Services">
-        <option value="General Checkup / Healthy" <?php if($preSelectedService == 'General Checkup / Healthy') echo 'selected'; ?>>General Checkup (Physical/Skin/Ear/Eye)</option>
-        <option value="Vaccination" <?php if($preSelectedService == 'Vaccination') echo 'selected'; ?>>Vaccination</option>
-        <option value="Dental Checkup" <?php if($preSelectedService == 'Dental Checkup') echo 'selected'; ?>>Dental Checkup (Scaling/Polishing/Gum)</option>
-        <option value="Deworming" <?php if($preSelectedService == 'Deworming') echo 'selected'; ?>>Deworming (Internal Parasite)</option>
-        <option value="Flea & Tick Treatment" <?php if($preSelectedService == 'Flea & Tick Treatment') echo 'selected'; ?>>Flea & Tick Treatment (External Parasite)</option>
-        <option value="Surgery Consultation" <?php if($preSelectedService == 'Surgery Consultation') echo 'selected'; ?>>Surgery Consultation</option>
-    </optgroup>
+                            <option value="">-- Select Diagnosis --</option>
+                            
                             <optgroup label="General Services">
-                                <option value="General Checkup / Healthy">General Checkup (Physical/Skin/Ear/Eye)</option>
-                                <option value="Vaccination">Vaccination</option>
-                                <option value="Dental Checkup">Dental Checkup (Scaling/Polishing/Gum)</option>
-                                <option value="Deworming">Deworming (Internal Parasite)</option>
-                                <option value="Flea & Tick Treatment">Flea & Tick Treatment (External Parasite)</option>
-                                <option value="Surgery Consultation">Surgery Consultation</option>
+                                <option value="General Checkup" <?php if($preSelectedService == 'General Checkup') echo 'selected'; ?>>General Checkup</option>
+                                <option value="Deworming" <?php if($preSelectedService == 'Deworming') echo 'selected'; ?>>Deworming</option>
+                                <option value="Vaccination" <?php if($preSelectedService == 'Vaccination') echo 'selected'; ?>>Vaccination</option>
+                                <option value="Surgery Consultation" <?php if($preSelectedService == 'Surgery Consultation') echo 'selected'; ?>>Surgery Consultation</option>
+                                <option value="Flea & Tick Treatment" <?php if($preSelectedService == 'Flea & Tick Treatment') echo 'selected'; ?>>Flea & Tick Treatment</option>
+                                <option value="Dental Checkup" <?php if($preSelectedService == 'Dental Checkup') echo 'selected'; ?>>Dental Checkup</option>
+                                <option value="Ear & Eye Examination" <?php if($preSelectedService == 'Ear & Eye Examination') echo 'selected'; ?>>Ear & Eye Examination</option>
+                                <option value="Skin & Allergy Treatment" <?php if($preSelectedService == 'Skin & Allergy Treatment') echo 'selected'; ?>>Skin & Allergy Treatment</option>
+                                <option value="Minor Wound Treatment" <?php if($preSelectedService == 'Minor Wound Treatment') echo 'selected'; ?>>Minor Wound Treatment</option>
                             </optgroup>
 
                             <optgroup label="Common Diseases">
@@ -355,8 +365,9 @@ include "../frontend/vetheader.php";
         
         function createMedicineRow() {
             const rowId = `med-row-${medicineCounter++}`;
-            let optionsHtml = '<option value="" data-price="0.00">Select Medicine</option>';
-            // UPDATED JS TO USE SNAKE_CASE
+            // UPDATED: Set default to empty value so it can be NULL
+            let optionsHtml = '<option value="" data-price="0.00" selected>Select Medicine</option>';
+            
             medicines.forEach(med => {
                 optionsHtml += `<option value="${med.medicine_id}" data-price="${parseFloat(med.unit_price).toFixed(2)}">${med.medicine_name} (RM ${parseFloat(med.unit_price).toFixed(2)} / unit)</option>`;
             });
@@ -364,10 +375,12 @@ include "../frontend/vetheader.php";
             const row = document.createElement('div');
             row.id = rowId;
             row.className = 'grid grid-cols-1 sm:grid-cols-12 gap-2 p-4 border border-gray-200 rounded-md bg-white shadow-sm';
+            
+            // REMOVED 'required' FROM SELECT to allow saving without selecting a medicine
             row.innerHTML = `
                 <div class="col-span-12 sm:col-span-4">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Medicine Name</label>
-                    <select class="medicine-select" name="medicineID[]" required>${optionsHtml}</select>
+                    <select class="medicine-select" name="medicineID[]">${optionsHtml}</select>
                 </div>
                 <div class="col-span-6 sm:col-span-2">
                     <label class="block text-xs font-medium text-gray-700 mb-1">Qty Used</label>
