@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 
 $vetID = $_SESSION['vetID'];             
@@ -17,15 +18,37 @@ if (empty($vetName)) {
     }
 }
 
-// Fetch Pet Info from MariaDB (snake_case)
-$petInfo = ['pet_id' => '-', 'owner_id' => '-'];
+// Fetch Pet Info from MariaDB
+$petInfo = ['pet_id' => '-', 'owner_id' => '-', 'service_id' => '-'];
 if (function_exists('getAppointmentByIdMaria')) {
     $data = getAppointmentByIdMaria($appointmentID);
-    if($data) $petInfo = $data;
+    if ($data) $petInfo = $data;
 }
 
-// --- UPDATED SERVICE MAPPING (MATCHING YOUR SCREENSHOT EXACTLY) ---
-// IDs are used internally to find the name, but won't be shown to the user.
+// =========================
+// FETCH NAMES FOR OVERVIEW
+// =========================
+$petName = '-';
+$ownerName = '-';
+$serviceName = '-';
+
+// Pet Name (PostgreSQL)
+if (!empty($petInfo['pet_id']) && function_exists('getPetByIdPG')) {
+    $petData = getPetByIdPG($petInfo['pet_id']);
+    if ($petData && isset($petData['pet_name'])) {
+        $petName = $petData['pet_name'];
+    }
+}
+
+// Owner Name (PostgreSQL)
+if (!empty($petInfo['owner_id']) && function_exists('getOwnerByIdPG')) {
+    $ownerData = getOwnerByIdPG($petInfo['owner_id']);
+    if ($ownerData && isset($ownerData['owner_name'])) {
+        $ownerName = $ownerData['owner_name'];
+    }
+}
+
+// Service Name (Mapping)
 $serviceMapping = [
     'SV001' => 'General Checkup',
     'SV002' => 'Deworming',
@@ -37,6 +60,10 @@ $serviceMapping = [
     'SV008' => 'Skin & Allergy Treatment',
     'SV009' => 'Minor Wound Treatment',
 ];
+
+if (!empty($petInfo['service_id']) && isset($serviceMapping[$petInfo['service_id']])) {
+    $serviceName = $serviceMapping[$petInfo['service_id']];
+}
 
 // Determine the default diagnosis value from the appointment
 $preSelectedService = '';
@@ -71,19 +98,17 @@ include "../frontend/vetheader.php";
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-3xl md:text-4xl font-bold" style="color: var(--primary-color);">Vet Clinic Treatment Portal</h1>
             <p class="mt-1 text-lg" style="color: #6b7280;">
-    Logged in as Vet: <strong><?php echo htmlspecialchars($vetID); ?></strong>
-    
-    <?php if (!empty($vetName)): ?>
-        (<?php echo htmlspecialchars($vetName); ?>)
-    <?php endif; ?>
-</p>
+                Logged in as Vet: <strong><?php echo htmlspecialchars($vetID); ?></strong>
+                <?php if (!empty($vetName)): ?>
+                    (<?php echo htmlspecialchars($vetName); ?>)
+                <?php endif; ?>
+            </p>
         </div>
     </div>
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
        <div class="custom-card p-6 rounded-xl mb-8 bg-white border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
-            
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-xs font-bold uppercase tracking-widest text-gray-400">
                     Patient Overview
@@ -94,7 +119,6 @@ include "../frontend/vetheader.php";
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-                
                 <div class="flex items-center space-x-4 group">
                     <div class="flex-shrink-0 w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 group-hover:bg-teal-100 transition-colors">
                         <i class="fa-regular fa-calendar-check text-lg"></i>
@@ -138,18 +162,17 @@ include "../frontend/vetheader.php";
                     <div>
                         <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">Service</p>
                         <p class="text-lg font-bold text-gray-800 tracking-tight font-mono">
-                            <?php echo htmlspecialchars($petInfo['service_id'] ?? 'N/A'); ?>
+                            <?php echo htmlspecialchars($serviceName); ?>
                         </p>
                     </div>
                 </div>
-
             </div>
         </div>
 
         <?php if ($insert_success): ?>
             <div class="success-message rounded-md font-semibold flex flex-wrap justify-between items-center gap-4">
                 <span>Treatment record added successfully! Total fee includes medicine cost.</span>
-                <a href="http://10.48.74.197/vetclinic/backend/paymentinsert_controller.php?treatment_id=<?php echo $_GET['treatment_id']; ?>&vet_id=<?php echo $vetID; ?>&owner_id=<?php echo $owner_id; ?><?php echo $petInfo['owner_id']; ?>" 
+                <a href="http://10.48.74.197/vetclinic/backend/paymentinsert_controller.php?treatment_id=<?php echo $_GET['treatment_id']; ?>&vet_id=<?php echo $vetID; ?>&owner_id=<?php echo $petInfo['owner_id']; ?>" 
                    class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded shadow">
                    Proceed to Payment 
                 </a>
@@ -163,17 +186,11 @@ include "../frontend/vetheader.php";
             
             <form action="" method="POST" id="treatmentForm">
                 <input type="hidden" name="petID" value="<?php echo $petInfo['pet_id']; ?>">
+                <input type="hidden" name="ownerID" value="<?php echo $petInfo['owner_id']; ?>">
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     <input type="hidden" name="treatmentID" value="<?php echo $nextTreatmentID; ?>">
-                    <div class="lg:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Appointment ID</label>
-                        <input type="text" name="appointmentID" value="<?php echo $appointmentID; ?>" readonly>
-                    </div>
-                    <div class="lg:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Vet ID</label>
-                        <input type="text" name="vetID" value="<?php echo $vetID; ?>" readonly>
-                    </div>
+            
                     <div class="lg:col-span-1">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                         <select name="treatmentStatus" required>
@@ -185,12 +202,10 @@ include "../frontend/vetheader.php";
                     </div>
                     <div class="lg:col-span-1">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                        <input type="date" name="treatmentDate" 
-       value="<?php echo isset($petInfo['date']) ? $petInfo['date'] : date('Y-m-d'); ?>" 
-       required>
+                        <input type="date" name="treatmentDate" value="<?php echo isset($petInfo['date']) ? $petInfo['date'] : date('Y-m-d'); ?>" required>
                     </div>
                     <div class="lg:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Base Fee (RM)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Consultation Fee (RM)</label>
                         <input type="number" name="treatmentFee" id="baseFee" step="0.01" placeholder="50.00" value="0.00" required>
                     </div>
                     
@@ -257,6 +272,60 @@ include "../frontend/vetheader.php";
                         Add Treatment Record
                     </button>
                 </div>
+            
+            <div id="vaccineModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                <div class="fixed inset-0 bg-gray-900/30 backdrop-blur-sm transition-opacity opacity-0" id="modalBackdrop"></div>
+
+                <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+                    <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                        
+                        <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md scale-95 opacity-0" id="modalPanel">
+                            
+                            <div class="absolute top-0 w-full h-2 bg-gradient-to-r from-teal-400 to-teal-600"></div>
+
+                            <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                                <div class="sm:flex sm:items-start">
+                                    <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-teal-50 sm:mx-0 sm:h-10 sm:w-10">
+                                        <i class="fas fa-syringe text-teal-600"></i>
+                                    </div>
+                                    <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                                        <h3 class="text-lg font-bold leading-6 text-gray-800" id="modal-title">Vaccination Follow-up</h3>
+                                        <div class="mt-2">
+                                            <p class="text-sm text-gray-500">
+                                                You selected <strong>Vaccination</strong>. Would you like to schedule the next dose automatically?
+                                            </p>
+                                            
+                                            <div class="mt-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                                <div class="mb-3">
+                                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Next Dose Date (+2 Weeks)</label>
+                                                    <input type="date" name="followUpDate" id="followUpDate" 
+                                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Time</label>
+                                                    <input type="time" name="followUpTime" id="followUpTime" value="10:00"
+                                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-100 gap-2">
+                                <button type="button" id="confirmFollowUp" 
+                                        class="inline-flex w-full justify-center rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-500 sm:ml-3 sm:w-auto transition-all">
+                                    <i class="fas fa-calendar-check mr-2 mt-1"></i> Schedule
+                                </button>
+                                <button type="button" id="cancelFollowUp" 
+                                        class="mt-3 inline-flex w-full justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition-all">
+                                    Skip
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             </form>
         </div>
 
@@ -470,26 +539,85 @@ include "../frontend/vetheader.php";
                 }
             });
         }
-        // --- Diagnosis Dropdown Logic ---
-    const diagSelect = document.getElementById('diagnosisSelect');
-    const diagInput = document.getElementById('diagnosisInput');
+        
+    // --- VACCINATION MODAL LOGIC ---
+    const diagnosisSelect = document.getElementById('diagnosisSelect');
+    const modal = document.getElementById('vaccineModal');
+    const backdrop = document.getElementById('modalBackdrop');
+    const panel = document.getElementById('modalPanel');
+    const confirmBtn = document.getElementById('confirmFollowUp');
+    const cancelBtn = document.getElementById('cancelFollowUp');
+    const dateInput = document.getElementById('followUpDate');
+    const timeInput = document.getElementById('followUpTime');
 
-    if (diagSelect && diagInput) {
-        diagSelect.addEventListener('change', function() {
+    // Diagnosis Dropdown Logic (Existing + Modal)
+    if (diagnosisSelect) {
+        const diagInput = document.getElementById('diagnosisInput');
+
+        diagnosisSelect.addEventListener('change', function() {
+            // 1. Handle "Other" input
             if (this.value === 'Other') {
-                // If 'Other', show the text box and clear it for typing
                 diagInput.classList.remove('hidden');
-                diagInput.style.display = 'block'; // Ensure it's visible if Tailwind 'hidden' conflicts
+                diagInput.style.display = 'block';
                 diagInput.value = '';
                 diagInput.focus();
             } else {
-                // Otherwise, hide text box and copy the selection value into it
                 diagInput.classList.add('hidden');
                 diagInput.style.display = 'none';
                 diagInput.value = this.value;
             }
+
+            // 2. Handle Vaccination Modal
+            if (this.value === 'Vaccination') {
+                openModal();
+            }
         });
     }
+
+    function openModal() {
+        modal.classList.remove('hidden');
+        // Small delay for animation
+        setTimeout(() => {
+            backdrop.classList.remove('opacity-0');
+            panel.classList.remove('opacity-0', 'scale-95');
+            panel.classList.add('opacity-100', 'scale-100');
+        }, 10);
+
+        // Auto-set Date to +2 Weeks (14 days)
+        const today = new Date();
+        today.setDate(today.getDate() + 14); 
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    function closeModal() {
+        backdrop.classList.add('opacity-0');
+        panel.classList.remove('opacity-100', 'scale-100');
+        panel.classList.add('opacity-0', 'scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
+    // Confirm: Keep values in the inputs (they are already inside the form) and close
+    confirmBtn.addEventListener('click', function() {
+        // Change button style to indicate success
+        this.innerHTML = '<i class="fas fa-check mr-2"></i> Scheduled';
+        this.classList.remove('bg-teal-600', 'hover:bg-teal-500');
+        this.classList.add('bg-green-600', 'hover:bg-green-500');
+        
+        setTimeout(closeModal, 600);
+    });
+
+    // Cancel: Clear values so backend ignores them
+    cancelBtn.addEventListener('click', function() {
+        dateInput.value = '';
+        timeInput.value = '';
+        closeModal();
+    });
+
     });
 </script>
 

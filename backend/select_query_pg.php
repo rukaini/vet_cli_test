@@ -89,3 +89,34 @@ function getOwnerByIdPG($ownerID) {
     $stmt->execute([':id' => $ownerID]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
+
+/* ---------- OWNER NAME ONLY ---------- */
+function getOwnerNameByIdPG($ownerID) {
+    $connPG = getPOSTGRES();
+    if (!$connPG) return null;
+
+    $stmt = $connPG->prepare("
+        SELECT owner_name
+        FROM owner
+        WHERE owner_id = :id
+    ");
+    $stmt->execute([':id' => $ownerID]);
+
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+
+/* ---------- PET ---------- */
+function getPetByIdPG($petID) {
+    $connPG = getPOSTGRES();
+    if (!$connPG) return null;
+
+    $stmt = $connPG->prepare("
+        SELECT pet_id, pet_name
+        FROM pet
+        WHERE pet_id = :id
+    ");
+    $stmt->execute([':id' => $petID]);
+
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}

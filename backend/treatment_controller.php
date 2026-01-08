@@ -20,10 +20,7 @@ if (!isset($_SESSION['vetID'])) die("Unauthorized access.");
 
 $vetID = $_SESSION['vetID'];
 $appointmentID = isset($_GET['appointment_id']) ? trim($_GET['appointment_id']) : '';
-//$appointmentID = isset($_GET['appointment_id']) ? trim($_GET['appointment_id']) : ($_SESSION['appointmentID'] ?? '');
 $vetName = $_SESSION['vetname'] ?? $vetID;
-
-//if (!empty($appointmentID)) $_SESSION['appointmentID'] = $appointmentID;
 
 /**
  * Get Medicines (Local MySQL)
@@ -135,14 +132,20 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
 
        $conn->commit();
 
-       // --- TAMBAHAN: SYNC KE APPOINTMENT (REQ BY ASYIQIN) ---
-       // Kalau treatment status 'Completed', update appointment jadi 'Done'
-       /*if ($treatmentStatus === 'Completed') {
-           if (function_exists('updateAppointmentStatusMaria')) {
-               // Update status jadi 'Done' dalam DB MariaDB
-               updateAppointmentStatusMaria($appointmentID, 'Completed'); 
+       // --- START: FOLLOW-UP VACCINATION LOGIC ---
+       if (!empty($postData['followUpDate']) && !empty($postData['followUpTime'])) {
+           if (function_exists('createFollowUpAppointment')) {
+               // Retrieve IDs needed for appointment
+               $f_ownerID = $postData['ownerID'] ?? ''; 
+               $f_petID   = $postData['petID'] ?? '';
+               
+               // Create the appointment in MariaDB
+               createFollowUpAppointment($f_ownerID, $f_petID, $vetID, $postData['followUpDate'], $postData['followUpTime']);
            }
-       }*/
+       }
+       // --- END: FOLLOW-UP VACCINATION LOGIC ---
+
+       // --- TAMBAHAN: SYNC KE APPOINTMENT (REQ BY ASYIQIN) ---
       if (function_exists('updateAppointmentStatusMaria')) {
         updateAppointmentStatusMaria($appointmentID, $treatmentStatus); 
     }
@@ -156,7 +159,7 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
 }
 
 /**
- * Get List - UPDATED: REMOVED WHERE CLAUSE
+ * Get List
  */
 function getTreatmentsList($conn, $appointmentID, $sort_by, $limit, $page) {
    try {
@@ -187,7 +190,6 @@ function getTreatmentsList($conn, $appointmentID, $sort_by, $limit, $page) {
        
        $stmt = $conn->prepare($sql);
        
-       // --- THE FIX: Bind Integers Explicitly ---
        $stmt->bindValue(1, $limit, PDO::PARAM_INT);
        $stmt->bindValue(2, $offset, PDO::PARAM_INT);
        $stmt->execute();
@@ -200,8 +202,6 @@ function getTreatmentsList($conn, $appointmentID, $sort_by, $limit, $page) {
        ];
        
    } catch (PDOException $e) {
-       // Optional: Uncomment to debug if it still fails
-       // error_log("Treatment List Error: " . $e->getMessage());
        return ['data' => [], 'total_rows' => 0, 'total_pages' => 1, 'current_page' => 1];
    }
 }

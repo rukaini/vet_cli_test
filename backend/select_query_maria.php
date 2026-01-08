@@ -102,20 +102,17 @@ function updateAppointmentStatusMaria($appointmentID, $treatmentStatus) {
 
     try {
         // --- MATCH ANIQ'S EXACT ENUM VALUES ---
-        // His Allowed Values: 'Pending', 'Confirmed', 'Cancelled', 'Completed'
         
         $newStatus = 'Pending'; // Default fallback
 
         if ($treatmentStatus === 'Completed') {
-            $newStatus = 'Completed'; // Perfect match!
+            $newStatus = 'Completed'; 
         } 
         elseif ($treatmentStatus === 'In Progress') {
-            // "In Progress" isn't in his list, so we use "Confirmed"
-            // This tells him the appointment is active/confirmed.
             $newStatus = 'Confirmed'; 
         }
         elseif ($treatmentStatus === 'Deceased') {
-            $newStatus = 'Cancelled'; // Appointment stops
+            $newStatus = 'Cancelled'; 
         }
 
         $sql = "UPDATE appointment SET status = ? WHERE appointment_id = ?";
@@ -125,8 +122,58 @@ function updateAppointmentStatusMaria($appointmentID, $treatmentStatus) {
         return true;
 
     } catch (PDOException $e) {
-        // Log the error but don't crash the page
         error_log("Sync Error: " . $e->getMessage());
         return false;
     }
 }
+
+/* =========================
+   INSERT FOLLOW-UP (ADDED)
+========================= */
+
+function getNextAppointmentIDMaria() {
+    $conn = getMariaDBConnection();
+    try {
+        // Find the highest ID (e.g., A005)
+        $stmt = $conn->query("SELECT MAX(CAST(SUBSTRING(appointment_id, 2) AS UNSIGNED)) FROM appointment");
+        $max = $stmt->fetchColumn();
+        $num = $max ? $max + 1 : 1;
+        return 'A' . str_pad($num, 3, '0', STR_PAD_LEFT);
+    } catch (PDOException $e) {
+        return "A999"; // Fallback
+    }
+}
+
+function createFollowUpAppointment($ownerID, $petID, $vetID, $date, $time) {
+    $conn = getMariaDBConnection();
+    if (!$conn) return false;
+
+    try {
+        $newID = getNextAppointmentIDMaria();
+        $serviceID = 'SV003'; // Hardcoded ID for 'Vaccination'
+        $status = 'Pending';
+        $createdAt = date('Y-m-d H:i:s');
+
+        $sql = "INSERT INTO appointment (appointment_id, owner_id, pet_id, vet_id, service_id, date, time, status, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([$newID, $ownerID, $petID, $vetID, $serviceID, $date, $time, $status, $createdAt]);
+
+        return $newID;
+    } catch (PDOException $e) {
+        error_log("Follow-up Insert Error: " . $e->getMessage());
+        return false;
+    }
+}
+
+function getAllService() {
+    $conn = getMariaDBConnection();
+    $stmt = $conn->query("SELECT * FROM service");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+
+
+
+?>
