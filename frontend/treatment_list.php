@@ -1,6 +1,7 @@
 <?php
 session_start();
 //require_once "../backend/token_auth.php";
+require_once "../frontend/vetheader.php";
 
 // --- FORCE UPDATE LOGIC (Added for Debugging) ---
 if (isset($_GET['vet_id'])) {

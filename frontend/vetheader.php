@@ -99,7 +99,7 @@ if (!isset($_SESSION['userType']) || $_SESSION['userType'] !== 'vet') {
                 <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
             </nav>
 
-            <a class="btn-getstarted" href="http://10.48.74.199:81/vetcli/backend/logout.php">Log out</a>
+            <a class="btn-getstarted" href="http://10.48.74.199:81/vetcli/backend/logout.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Log out</a>
 
         </div>
 
