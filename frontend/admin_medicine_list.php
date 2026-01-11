@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once "../backend/token_auth.php";
 
 // --- 1. Authentication Check (Admin Only) ---
 if (!isset($_SESSION['adminID'])) {
@@ -8,9 +9,11 @@ if (!isset($_SESSION['adminID'])) {
 }
 
 $adminID = $_SESSION['adminID'];
-
+$adminName = $_SESSION['adminname'] ?? 'Administrator';
 // --- 2. Backend Connection & Data Fetching ---
 require_once "../backend/connection.php";
+require_once "../backend/select_query_pg.php";
+
 
 // Use the Local MySQL Connection
 $conn = $connMySQL;

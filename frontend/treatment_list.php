@@ -1,17 +1,11 @@
 <?php
 session_start();
+//require_once "../backend/token_auth.php";
 
 // --- FORCE UPDATE LOGIC (Added for Debugging) ---
 if (isset($_GET['vet_id'])) {
     $_SESSION['vetID'] = trim($_GET['vet_id']);
 }
-
-/*--- DEBUG: REMOVE THIS AFTER CHECKING ---
-echo "<pre>";
-print_r($_SESSION); // This prints all session variables nicely
-echo "</pre>";
-exit(); // Stop the rest of the page from loading so you can see the output
-*/
 
 // --- 1. Authentication Check ---
 if (!isset($_SESSION['vetID'])) {
@@ -24,43 +18,98 @@ $vetName = "Veterinarian";
 
 // --- 2. Include Backend Files ---
 require_once "../backend/connection.php";
-require_once "../backend/select_query_pg.php"; // Explicitly include PG queries
+require_once "../backend/select_query_pg.php"; 
 require_once "../backend/treatment_controller.php";
 
 // --- 3. Force Fetch Vet Name Logic ---
-$displayName = ""; // Default empty
+$displayName = ""; 
 
-// Check if we have the name in Session
 if (isset($_SESSION['vetName']) && !empty($_SESSION['vetName']) && $_SESSION['vetName'] !== $vetID) {
     $displayName = $_SESSION['vetName'];
-} 
-// If not, try to fetch from Postgres Database
-else {
+} else {
     if (function_exists('getVetByIdPG')) {
-    // Call the backend function
-    $vetData = getVetByIdPG($vetID);
-    
-    // Check if we got data and assign the variable
-    if ($vetData && isset($vetData['vet_name'])) {
-        $vetName = $vetData['vet_name']; // <--- This is the variable you wanted
-        
-        // Optional: Save to session so we don't query every time
-        $_SESSION['vetName'] = $vetName; // Save for later
+        $vetData = getVetByIdPG($vetID);
+        if ($vetData && isset($vetData['vet_name'])) {
+            $vetName = $vetData['vet_name'];
+            $_SESSION['vetName'] = $vetName; 
         }
     }
 }
 
-// Fallback: If still empty, use a placeholder
 if (empty($displayName)) {
     $displayName = "Veterinarian"; 
 }
 
-// Parameters for logic
 $sort_by = isset($_GET['sort']) ? $_GET['sort'] : 'date_desc';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-// Ensure $limit matches what is in treatment_controller or defined here
-// In previous code, it was inside the controller/main execution block. 
-// We rely on the variables $treatments, $total_pages, etc. provided by treatment_controller.php
+
+// --- PREPARE DATA FETCHING ---
+// Determine DB connections
+$dbLocal = isset($connMySQL) ? $connMySQL : (isset($conn) ? $conn : null); // For Treatments/Instructions
+$dbMaria = isset($conn) ? $conn : null; // For Appointments (Time)
+
+$instructionsMap = [];
+$treatmentTimes = [];
+
+if (!empty($treatments) && $dbLocal) {
+    try {
+        // Get IDs from the current page's treatments
+        $t_ids = array_column($treatments, 'treatment_id');
+        
+        if (!empty($t_ids)) {
+            $placeholders = str_repeat('?,', count($t_ids) - 1) . '?';
+
+            // --- 1. FETCH INSTRUCTIONS ---
+            $sqlInst = "SELECT md.treatment_id, md.instruction, m.medicine_name 
+                        FROM MEDICINE_DETAILS md
+                        LEFT JOIN MEDICINE m ON md.medicine_id = m.medicine_id
+                        WHERE md.treatment_id IN ($placeholders) 
+                        AND md.instruction IS NOT NULL 
+                        AND md.instruction != ''";
+            
+            $stmtInst = $dbLocal->prepare($sqlInst);
+            $stmtInst->execute($t_ids);
+            $allInstructions = $stmtInst->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($allInstructions as $inst) {
+                $instructionsMap[$inst['treatment_id']][] = [
+                    'medicine' => $inst['medicine_name'] ?? 'Medicine',
+                    'instruction' => $inst['instruction']
+                ];
+            }
+
+            // --- 2. FETCH APPOINTMENT TIMES ---
+            // First: Get appointment_id for these treatments (Local DB)
+            $sqlAppt = "SELECT treatment_id, appointment_id FROM TREATMENT WHERE treatment_id IN ($placeholders)";
+            $stmtAppt = $dbLocal->prepare($sqlAppt);
+            $stmtAppt->execute($t_ids);
+            $apptMap = $stmtAppt->fetchAll(PDO::FETCH_KEY_PAIR); // [treatment_id => appointment_id]
+
+            // Second: Get Time from Appointment Table (MariaDB)
+            if (!empty($apptMap) && $dbMaria) {
+                $a_ids = array_values($apptMap);
+                $a_ids = array_filter($a_ids); // Remove nulls
+                
+                if (!empty($a_ids)) {
+                    $placeholdersA = str_repeat('?,', count($a_ids) - 1) . '?';
+                    $sqlTime = "SELECT appointment_id, time FROM appointment WHERE appointment_id IN ($placeholdersA)";
+                    $stmtTime = $dbMaria->prepare($sqlTime);
+                    $stmtTime->execute($a_ids);
+                    $timeMap = $stmtTime->fetchAll(PDO::FETCH_KEY_PAIR); // [appointment_id => time]
+
+                    // Map back to treatment_id
+                    foreach ($apptMap as $tid => $aid) {
+                        if (isset($timeMap[$aid])) {
+                            $treatmentTimes[$tid] = $timeMap[$aid];
+                        }
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // Silently fail if tables/connections missing
+    }
+}
 
 include "../frontend/vetheader.php";
 ?>
@@ -79,7 +128,7 @@ include "../frontend/vetheader.php";
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* --- Shared Aesthetic Styles (From Medicine List) --- */
+        /* --- Shared Aesthetic Styles --- */
         :root {
             --primary-color: #00798C;       /* Teal */
             --primary-hover: #00606f;
@@ -97,7 +146,7 @@ include "../frontend/vetheader.php";
         }
 
         .main-wrapper {
-            margin-top: 100px; /* Space for fixed header */
+            margin-top: 100px;
             padding-bottom: 60px;
             min-height: 85vh;
         }
@@ -154,7 +203,7 @@ include "../frontend/vetheader.php";
             font-size: 0.9rem;
             color: var(--text-main);
             border-bottom: 1px solid #f1f5f9;
-            vertical-align: middle;
+            vertical-align: top;
         }
 
         .aesthetic-table tbody tr:last-child td {
@@ -170,18 +219,17 @@ include "../frontend/vetheader.php";
             font-size: 0.75rem;
             font-weight: 600;
         }
-        .badge-green  { background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; } /* Completed */
-        .badge-blue   { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; } /* In Progress */
-        .badge-yellow { background-color: #fefce8; color: #ca8a04; border: 1px solid #fef08a; } /* Pending */
-        .badge-red    { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; } /* Deceased */
-        .badge-gray   { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; } /* Default */
+        .badge-green  { background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+        .badge-blue   { background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+        .badge-yellow { background-color: #fefce8; color: #ca8a04; border: 1px solid #fef08a; }
+        .badge-red    { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .badge-gray   { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
 
-        /* --- Animations --- */
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
     </style>
 </head>
 
@@ -235,9 +283,8 @@ include "../frontend/vetheader.php";
             <table class="aesthetic-table">
                 <thead>
                     <tr>
-                        <th>Treatment Info</th>
-                        <th>Date</th>
-                        <th class="w-1/3">Diagnosis / Description</th>
+                        <th class="w-24">ID</th>
+                        <th class="w-36">Date & Time</th> <th class="w-5/12">Diagnosis & Details</th> 
                         <th>Status</th>
                         <th class="text-right">Total Fee</th>
                         <th>Vet ID</th>
@@ -254,28 +301,65 @@ include "../frontend/vetheader.php";
                                 'Deceased'    => 'badge-red',
                                 default       => 'badge-gray',
                             };
-                            $desc = !empty($row['diagnosis']) ? $row['diagnosis'] : $row['treatment_description'];
+                            
+                            $tID = $row['treatment_id'];
+                            $hasInstructions = isset($instructionsMap[$tID]) && count($instructionsMap[$tID]) > 0;
+                            $timeStr = isset($treatmentTimes[$tID]) ? date('h:i A', strtotime($treatmentTimes[$tID])) : '';
                         ?>
                         <tr>
                             <td>
+                                <span class="font-bold text-base" style="color: var(--primary-color);">
+                                    <?php echo htmlspecialchars($row['treatment_id']); ?>
+                                </span>
+                            </td>
+
+                            <td>
                                 <div class="flex flex-col">
-                                    <span class="font-bold text-base" style="color: var(--primary-color);">
-                                        <?php echo htmlspecialchars($row['treatment_id']); ?>
+                                    <div class="flex items-center text-sm text-gray-600 font-medium">
+                                        <i class="far fa-calendar-alt mr-2 text-teal-400"></i>
+                                        <?php echo date('d/m/Y', strtotime($row['treatment_date'])); ?>
+                                    </div>
+                                    <?php if ($timeStr): ?>
+                                    <div class="flex items-center text-xs text-gray-400 mt-1 ml-6">
+                                        <i class="far fa-clock mr-1.5"></i>
+                                        <?php echo $timeStr; ?>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+
+                            <td>
+                                <div class="mb-1">
+                                    <span class="font-bold text-gray-800 text-sm block">
+                                        <?php echo htmlspecialchars($row['diagnosis'] ?: 'General Checkup'); ?>
                                     </span>
                                 </div>
-                            </td>
 
-                            <td>
-                                <div class="flex items-center text-sm text-gray-600">
-                                    <i class="far fa-calendar-alt mr-2 text-teal-400"></i>
-                                    <?php echo htmlspecialchars($row['treatment_date']); ?>
-                                </div>
-                            </td>
+                                <?php if (!empty($row['treatment_description'])): ?>
+                                    <div class="text-xs text-gray-500 leading-relaxed italic mb-2">
+                                        <?php echo nl2br(htmlspecialchars($row['treatment_description'])); ?>
+                                    </div>
+                                <?php endif; ?>
 
-                            <td>
-                                <p class="text-sm text-gray-700 truncate max-w-xs" title="<?php echo htmlspecialchars($row['treatment_description']); ?>">
-                                    <?php echo htmlspecialchars($desc); ?>
-                                </p>
+                                <?php if ($hasInstructions): ?>
+                                    <div class="mt-2 bg-slate-50 rounded-lg p-2.5 border border-slate-100 max-w-md">
+                                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center">
+                                            <i class="fas fa-prescription-bottle-alt mr-1.5 text-teal-500"></i> 
+                                            Instructions
+                                        </p>
+                                        <ul class="space-y-1.5">
+                                            <?php foreach ($instructionsMap[$tID] as $item): ?>
+                                                <li class="text-xs text-slate-700 flex items-start">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 mr-2 flex-shrink-0"></span>
+                                                    <span>
+                                                        <strong class="text-slate-800"><?php echo htmlspecialchars($item['medicine']); ?>:</strong> 
+                                                        <?php echo htmlspecialchars($item['instruction']); ?>
+                                                    </span>
+                                                </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                <?php endif; ?>
                             </td>
 
                             <td>

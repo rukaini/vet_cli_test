@@ -1,5 +1,6 @@
 <?php
 // Backend Treatment Controller
+require_once "../backend/token_auth.php";
 require_once __DIR__ . '/connection.php';
 require_once __DIR__ . '/select_query_pg.php';
 //require_once __DIR__ . '/select_query_mysqli.php';
@@ -132,15 +133,17 @@ function processTreatmentForm($conn, $postData, $vetID, $appointmentID) {
 
        $conn->commit();
 
-       // --- START: FOLLOW-UP VACCINATION LOGIC ---
+// --- START: FOLLOW-UP VACCINATION LOGIC ---
        if (!empty($postData['followUpDate']) && !empty($postData['followUpTime'])) {
            if (function_exists('createFollowUpAppointment')) {
                // Retrieve IDs needed for appointment
                $f_ownerID = $postData['ownerID'] ?? ''; 
                $f_petID   = $postData['petID'] ?? '';
+               // Get selected service or default to General Checkup (SV001) if missing
+               $f_serviceID = $postData['followUpService'] ?? 'SV001'; 
                
-               // Create the appointment in MariaDB
-               createFollowUpAppointment($f_ownerID, $f_petID, $vetID, $postData['followUpDate'], $postData['followUpTime']);
+               // Create the appointment in MariaDB (Added $f_serviceID)
+               createFollowUpAppointment($f_ownerID, $f_petID, $vetID, $postData['followUpDate'], $postData['followUpTime'], $f_serviceID);
            }
        }
        // --- END: FOLLOW-UP VACCINATION LOGIC ---
