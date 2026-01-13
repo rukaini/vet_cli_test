@@ -12,12 +12,19 @@ $connPG = getPOSTGRES();
 global $connMySQL; // Use Local MySQL for Treatments
 
 // Authentication
+// Authentication
 if (isset($_GET['vet_id'])) $_SESSION['vetID'] = trim($_GET['vet_id']);
 if (isset($_GET['vet_name'])) $_SESSION['vetname'] = urldecode(trim($_GET['vet_name']));
 
-if (!isset($_SESSION['vetID'])) die("Unauthorized access.");
-
-$vetID = $_SESSION['vetID'];
+// FIX: Allow both Admin and Vet
+if (isset($_SESSION['vetID'])) {
+    $vetID = $_SESSION['vetID'];
+} elseif (isset($_SESSION['adminID'])) {
+    // If admin is logged in, use adminID or handle accordingly
+    $vetID = $_SESSION['adminID']; 
+} else {
+    die("Unauthorized access.");
+}
 $appointmentID = isset($_GET['appointment_id']) ? trim($_GET['appointment_id']) : '';
 $vetName = $_SESSION['vetname'] ?? $vetID;
 

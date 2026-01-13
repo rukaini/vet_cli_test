@@ -11,6 +11,18 @@ require_once "../backend/treatment_controller.php";
 
 // --- 2. NOW LOAD THE VISUAL HEADER ---
 require_once "../frontend/vetheader.php";
+require_once "../backend/sso_verify.php";
+
+$token = $_GET['token'] ?? null;
+$payload = verifySSOToken($token);
+
+if (!$payload) {
+    die("Unauthorized");
+}
+
+$vetID   = $payload['id'];
+$vetName = $payload['name'];
+$role    = $payload['type'];
 
 // --- 3. GET SESSION DATA ---
 $vetID = $_SESSION['vetID'];             

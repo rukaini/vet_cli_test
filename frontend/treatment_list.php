@@ -26,7 +26,8 @@ else {
 
 // --- 3. INCLUDE BACKEND FILES ---
 require_once "../backend/connection.php";
-require_once "../backend/select_query_pg.php"; // Required for PostgreSQL Owner Lookup
+require_once "../backend/select_query_pg.php"; 
+require_once "../backend/select_query_maria.php";
 require_once "../backend/treatment_controller.php";
 
 // --- 4. FETCH USER NAME ---

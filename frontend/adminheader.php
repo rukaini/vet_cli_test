@@ -54,7 +54,7 @@ if (!isset($_SESSION['userType']) || $_SESSION['userType'] !== 'admin') {
 
             <nav id="navmenu" class="navmenu">
                 <ul>
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/vethome.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Home</a></li>
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/adminhome.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Home</a></li>
 
 
                     <li><a href="http://10.48.74.39/Workshop 2/frontend/report_vet.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Dashboard</a></li>
