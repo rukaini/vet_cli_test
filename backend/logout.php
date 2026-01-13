@@ -4,7 +4,7 @@
 //xperlu pakai dah ni, pakai logout aku je
 
 
-session_start();
+//session_start();
 
 // Clear session array
 $_SESSION = [];

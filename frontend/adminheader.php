@@ -59,6 +59,13 @@ if (!isset($_SESSION['userType']) || $_SESSION['userType'] !== 'admin') {
 
                     <li><a href="http://10.48.74.39/Workshop 2/frontend/report_vet.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Dashboard</a></li>
 
+                    <li class="dropdown"><a href="#"><span>Security</span> <i class="bi bi-chevron-down"></i></a>
+                        <ul>
+                            <li><a href="http://10.48.74.199:81/vetcli/frontend/admin_security.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Unlocked Account</a></li>
+                            <li><a href="http://10.48.74.199:81/vetcli/frontend/admin_audit.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Audit Trail</a></li>
+                        </ul>
+                    </li>
+
                     <li class="dropdown"><a href="#"><span>Veterinarian</span> <i class="bi bi-chevron-down"></i></a>
                         <ul>
                             <li><a href="http://10.48.74.199:81/vetcli/frontend/vetregister.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Register Vet</a></li>
@@ -69,22 +76,35 @@ if (!isset($_SESSION['userType']) || $_SESSION['userType'] !== 'admin') {
 
                     <li class="dropdown"><a href="#"><span>Medicine</span> <i class="bi bi-chevron-down"></i></a>
                         <ul>
-                              <li><a href="treatment_list.php?token=<?= urlencode($_SESSION['sso_token']) ?>">List Treatment</a></li>
-                            <li><a href="../frontend/medicinedetails.php">Add Medicine</a></li>
-                            <li><a href="../frontend/admin_medicine_list.php">Stock Medicine</a></li>
+                            <li><a href="../frontend/medicinedetails.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Add Medicine</a></li>
+                            <li><a href="../frontend/admin_medicine_list.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Stock Medicine</a></li>
                         </ul>
                     </li>
 
-                    <li><a href="http://10.48.74.61/Vet_clinic/frontend/services.php">Services</a></li>
+                    <li class="dropdown"><a href="#"><span>Treatment</span> <i
+                                class="bi bi-chevron-down toggle-dropdown"></i></a>
+                        <ul>
+                            
+                            <li><a href="treatment_list.php?token=<?= urlencode($_SESSION['sso_token']) ?>">List Treatment</a></li>
+                        </ul>
+                    </li>
 
-                     <li><a href="http://10.48.74.197/vetclinic/frontend/paymenthistory.php">Payments</a></li>
+                    <li><a href="http://10.48.74.61/Vet_clinic/frontend/services.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Services</a></li>
 
 
-                    <li><a href="http://10.48.74.199:81/vetcli/frontend/adminprofile.php">MyProfile</a></li>
+                     <li class="dropdown"><a href="#"><span>Payments</span> <i class="bi bi-chevron-down"></i></a>
+                        <ul>
+                            <li><a href="http://10.48.74.197/vetclinic/frontend/paymenthistory.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Payment History</a></li>
+                            <li><a href="http://10.48.74.197/vetclinic/frontend/paymentaudit.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Payment Audit</a></li>
+                        </ul>
+                    </li>
+
+
+                    <li><a href="http://10.48.74.199:81/vetcli/frontend/adminprofile.php?token=<?= urlencode($_SESSION['sso_token']) ?>">MyProfile</a></li>
                 </ul>
                 <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
             </nav>
 
-            <a class="btn-getstarted" href="http://10.48.74.199:81/vetcli/backend/logout.php">Log out</a>
+            <a class="btn-getstarted" href="http://10.48.74.199:81/vetcli/backend/logout.php?token=<?= urlencode($_SESSION['sso_token']) ?>">Log out</a>
         </div>
     </header>

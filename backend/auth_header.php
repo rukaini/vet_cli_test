@@ -36,6 +36,23 @@ if (!$payload || $payload['exp'] < time()) die("Token expired");
 /* =========================
    4. Create / refresh local session
 ========================= */
+/* =========================
+   4. Create / refresh local session
+========================= */
 $_SESSION['userID']   = $payload['id'];
 $_SESSION['userName'] = $payload['name'];
 $_SESSION['userType'] = $payload['type'];
+
+// --- FIX: Map generic userID to specific role IDs used by pages ---
+if ($payload['type'] === 'vet') {
+    $_SESSION['vetID'] = $payload['id'];
+    $_SESSION['vetName'] = $payload['name'];
+} 
+elseif ($payload['type'] === 'admin') {
+    $_SESSION['adminID'] = $payload['id'];
+    $_SESSION['adminname'] = $payload['name'];
+} 
+elseif ($payload['type'] === 'owner') {
+    $_SESSION['ownerID'] = $payload['id'];
+    $_SESSION['ownerName'] = $payload['name'];
+}
